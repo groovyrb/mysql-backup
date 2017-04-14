@@ -1,70 +1,95 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript"> window.onload = closeWindow(); </script>
 <?php
-backup_tables('localhost','root','','password');
-
-error_reporting("error");
 $host ="localhost";
-$name ="";
-$pass ="";
+$name ="databasename";
+$pass ="password";
 $user ="root";
+$tables = '*';
 
-/* backup the db OR just a table */
-function backup_tables($host,$user,$pass,$name,$tables = '*')
-{
-	
-	$link = mysql_connect($host,$user,$pass);
-	mysql_select_db($name,$link);
-	
-	//get all of the tables
-	if($tables == '*')
-	{
-		$tables = array();
-		$result = mysql_query('SHOW TABLES');
-		while($row = mysql_fetch_row($result))
-		{
-			$tables[] = $row[0];
-		}
+/* for error check up uncomment below lines*/
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+set_time_limit(-1) ;
+ini_set('memory_limit', '-1');
+ini_set('max_execution_time', 300);
+
+	$con=mysqli_connect($host,$user,$pass,$name);
+	// Check connection
+	if (mysqli_connect_errno())
+	  {
+	  echo "Failed to connect to MySQL: " . mysqli_connect_error();
+	  }
+
+	/* Fetching all tables from database */
+	$sql="SHOW TABLES FROM ".$name;
+
+	if ($result=mysqli_query($con,$sql))
+	  {		$tables = array();
+			while ($row=mysqli_fetch_row($result))
+			{
+				$tables[] = $row[0];
+		
+			}
+			
+			 mysqli_free_result($result);
 	}
 	else
 	{
 		$tables = is_array($tables) ? $tables : explode(',',$tables);
 	}
+	/* datatable ends here*/
 	
-	//cycle through
+	$return = '';
+	/*Fetching all table data from */
 	foreach($tables as $table)
-	{
-		$result = mysql_query('SELECT * FROM '.$table);
-		$num_fields = mysql_num_fields($result);
-		
-		$return.'='. 'DROP TABLE '.$table.';';
-		$row2 = mysql_fetch_row(mysql_query('SHOW CREATE TABLE '.$table));
-		$return.= "\n\n".$row2[1].";\n\n";
-		
+    {	
+		$result1 ='SELECT * FROM '.$table;
+		$result1=mysqli_query($con,$result1);
+        $num_fields = mysqli_num_fields($result1);
+       
+       //$row2 = mysql_fetch_row(mysql_query('SHOW CREATE TABLE '.$table));
+        $return.'='. 'DROP TABLE '.$table.';';
+			$create = 'SHOW CREATE TABLE '.$table ;
+			$create = mysqli_query($con,$create);
+			$row2=mysqli_fetch_row($create) ;
+			
+        $return.= "\n\n".$row2[1].";\n\n";
+        
 		for ($i = 0; $i < $num_fields; $i++) 
-		{
-			while($row = mysql_fetch_row($result))
-			{
-				$return.= 'INSERT INTO '.$table.' VALUES(';
-				for($j=0; $j<$num_fields; $j++) 
-				{
-					$row[$j] = addslashes($row[$j]);
-					$row[$j] = ereg_replace("\n","\\n",$row[$j]);
-					if (isset($row[$j])) { $return.= '"'.$row[$j].'"' ; } else { $return.= '""'; }
-					if ($j<($num_fields-1)) { $return.= ','; }
-				}
-				$return.= ");\n";
-			}
-		}
-		$return.="\n\n\n";
+        {
+            while($row = mysqli_fetch_row($result1))
+            {
+                $return.= 'INSERT INTO '.$table.' VALUES(';
+                for($j=0; $j<$num_fields; $j++) 
+                {
+                    $row[$j] = addslashes($row[$j]);
+                    $row[$j] = str_replace("\n","\\n",$row[$j]);
+                    if (isset($row[$j])) { $return.= '"'.$row[$j].'"' ; } else { $return.= '""'; }
+                    if ($j<($num_fields-1)) { $return.= ','; }
+                }
+                $return.= ");\n";
+            }
+        }
+        $return.="\n\n\n";
+                    
 	}
-	
-	//save file
-	
-	$handle = fopen('choithram-'.date("Y-m-d-H-i-s").'-'.(implode(',',$tables)).'.sql','w+');
-	fwrite($handle,$return);
-	fclose($handle);
-}
+	// sav file to self folder
+	$handle = fopen($name.'-'.date("Y-m-d-H-i-s-A").'.sql','w+');
+    fwrite($handle,$return);
+    fclose($handle);
 
-header('location:../index.php?msg=1');
+    echo "<h3>Thank you</h3>";
+ 	echo "This window will close in next 5 seconds.";
+	echo "Thanks Database backup done on ".date("Y-m-d-H-i-s-A");
+	echo "<script> close();</script>";
+	mysqli_close($con);
 ?>
 
-
+<script type="text/javascript">
+function closeWindow() {
+setTimeout(function() {
+window.close();
+}, 5000);
+}
+</script>
